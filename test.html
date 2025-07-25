@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - EduAssess Pro</title>
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <h2>EduAssess Pro</h2>
+            </div>
+            <div class="nav-links">
+                <a href="javascript:void(0)" onclick="confirmExit()">Exit Test</a>
+                <a href="index.html" onclick="confirmExit()">Home</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Test Configuration Display -->
+    <div id="testConfig" class="container" style="margin-top: 2rem;">
+        <div class="card" style="max-width: 800px; margin: 0 auto;">
+            <h3>📋 Test Configuration</h3>
+            <div id="configDisplay"></div>
+            <div class="text-center" style="margin-top: 1rem;">
+                <button id="startTestBtn" class="btn btn-primary btn-large">Start Test</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test Interface (Initially Hidden) -->
+    <div id="testInterface" class="test-interface" style="display: none;">
+        <!-- Test Header -->
+        <div class="test-header">
+            <div class="test-info">
+                <div>
+                    <span id="questionCounter">Question 1 of 25</span>
+                    <span id="currentSubject" class="current-subject">Loading...</span>
+                </div>
+                <span id="timer" class="timer">60:00</span>
+            </div>
+        </div>
+
+        <div class="test-main">
+            <!-- Question Palette -->
+            <div class="question-palette">
+                <div class="palette-header">
+                    <h4>📋 Question Palette</h4>
+                    <button id="togglePalette" class="toggle-btn">▼</button>
+                </div>
+                <div class="palette-content">
+                    <div class="palette-legend">
+                        <div class="legend-item">
+                            <div class="legend-color answered"></div>
+                            <span>Answered</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color marked"></div>
+                            <span>Marked</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color current"></div>
+                            <span>Current</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color unanswered"></div>
+                            <span>Not Visited</span>
+                        </div>
+                    </div>
+                    <div id="paletteGrid" class="palette-grid"></div>
+                    <div class="palette-summary">
+                        <div id="paletteSummary"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Question Container -->
+            <div class="question-main">
+                <div class="question-container">
+                    <div class="question-header">
+                        <span class="question-subject"></span>
+                        <span class="question-topic"></span>
+                    </div>
+                    <div id="questionText" class="question-text"></div>
+                    <div id="optionsContainer" class="options-container"></div>
+                </div>
+
+                <div class="test-controls">
+                    <div class="control-left">
+                        <button id="prevBtn" class="btn btn-secondary">← Previous</button>
+                    </div>
+                    <div class="control-center">
+                        <button id="markBtn" class="btn btn-warning">Mark for Review</button>
+                        <button id="clearBtn" class="btn btn-outline">Clear Response</button>
+                    </div>
+                    <div class="control-right">
+                        <button id="nextBtn" class="btn btn-primary">Next →</button>
+                        <button id="submitBtn" class="btn btn-success" style="display: none;">Submit Test</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Display -->
+    <div id="resultsContainer" class="container" style="display: none; margin-top: 2rem;">
+        <div class="card" style="max-width: 800px; margin: 0 auto;">
+            <h3>🎯 Test Results</h3>
+            <div id="resultsDisplay"></div>
+        </div>
+    </div>
+
+    <!-- Load ALL question files for universal support -->
+    <script src="js/questions2023.js"></script>
+    <script src="js/questions2024.js"></script>
+    <script src="js/questions2025.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const testConfig = JSON.parse(localStorage.getItem('testConfig') || '{}');
+            
+            // Determine data source based on test mode
+            let allQuestions = [];
+            let dataSourceLabel = '';
+            
+            switch(testConfig.mode) {
+                case 'topic-test':
+                    // Topic tests use 2023 data
+                    allQuestions = typeof topicQuestions2023 !== 'undefined' ? topicQuestions2023 : [];
+                    dataSourceLabel = '2023 Topic Database';
+                    break;
+                case 'practice-test':
+                    // Practice tests use 2024 data
+                    allQuestions = typeof practiceQuestions2024 !== 'undefined' ? practiceQuestions2024 : [];
+                    dataSourceLabel = '2024 Practice Database';
+                    break;
+                case 'session-test':
+                    // Session tests use 2025 data
+                    allQuestions = typeof sessionQuestions2025 !== 'undefined' ? sessionQuestions2025 : [];
+                    dataSourceLabel = '2025 Session Database';
+                    break;
+                default:
+                    alert('Invalid test mode. Redirecting to home.');
+                    window.location.href = 'index.html';
+                    return;
+            }
+
+            console.log(`Loading ${testConfig.mode} with ${allQuestions.length} questions from ${dataSourceLabel}`);
+
+            // Check if valid test configuration exists
+            if (!testConfig.mode) {
+                alert('No test configuration found. Redirecting to test selection.');
+                window.location.href = 'test-selection.html';
+                return;
+            }
+
+            let currentQuestionIndex = 0;
+            let testQuestions = [];
+            let userAnswers = {};
+            let markedQuestions = new Set();
+            let visitedQuestions = new Set();
+            let timeRemaining = 0;
+            let timerInterval;
+            let subjectQuestions = {};
+            let selectedSubjects = [];
+
+            // Initialize test
+            initializeTest();
+
+            function initializeTest() {
+                console.log(`Initializing ${testConfig.mode}...`, testConfig);
+                
+                if (allQuestions.length === 0) {
+                    alert(`No questions found in ${dataSourceLabel}. Please check your data files.`);
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                // Generate test questions based on test type
+                if (testConfig.mode === 'topic-test') {
+                    generateTopicTestQuestions(allQuestions, testConfig.selectedTopics);
+                    selectedSubjects = [...new Set(testConfig.selectedTopics.map(topic => topic.subject))];
+                    timeRemaining = selectedSubjects.length * 3600; // 1 hour per subject
+                } else if (testConfig.mode === 'practice-test') {
+                    generatePracticeTestQuestions(allQuestions, testConfig);
+                    timeRemaining = testConfig.timeLimit || 3600; // Use configured time
+                } else if (testConfig.mode === 'session-test') {
+                    generateSessionTestQuestions(allQuestions, testConfig);
+                    timeRemaining = testConfig.duration || 10800; // Use configured duration
+                }
+                
+                if (testQuestions.length === 0) {
+                    alert('No questions found for selected configuration.');
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                displayTestConfiguration();
+            }
+
+            function generateTopicTestQuestions(allQuestions, selectedTopics) {
+                console.log('Generating topic test questions from 2023 database:', selectedTopics);
+                
+                // Group questions by subject and topic
+                const questionsBySubjectTopic = {};
+                
+                allQuestions.forEach(question => {
+                    const key = `${question.subject}|${question.topic}`;
+                    if (!questionsBySubjectTopic[key]) {
+                        questionsBySubjectTopic[key] = [];
+                    }
+                    questionsBySubjectTopic[key].push(question);
+                });
+
+                // Group selected topics by subject
+                const topicsBySubject = {};
+                selectedTopics.forEach(topic => {
+                    if (!topicsBySubject[topic.subject]) {
+                        topicsBySubject[topic.subject] = [];
+                    }
+                    topicsBySubject[topic.subject].push(topic.topic);
+                });
+
+                // Generate questions for each subject
+                Object.keys(topicsBySubject).forEach(subject => {
+                    const topics = topicsBySubject[subject];
+                    const subjectQuestionPool = [];
+                    
+                    // Collect all questions for this subject's topics
+                    topics.forEach(topic => {
+                        const key = `${subject}|${topic}`;
+                        if (questionsBySubjectTopic[key]) {
+                            subjectQuestionPool.push(...questionsBySubjectTopic[key]);
+                        }
+                    });
+
+                    if (subjectQuestionPool.length > 0) {
+                        subjectQuestions[subject] = selectAndBalanceQuestions(subjectQuestionPool, topics, subject);
+                    }
+                });
+
+                // Combine all subject questions
+                testQuestions = [];
+                Object.values(subjectQuestions).forEach(questions => {
+                    testQuestions.push(...questions);
+                });
+
+                // Shuffle the final question set
+                testQuestions = shuffleArray(testQuestions);
+                
+                console.log('Generated topic test questions from 2023 database:', testQuestions.length);
+            }
+
+            function generatePracticeTestQuestions(allQuestions, config) {
+                console.log('Generating practice test questions from 2024 database:', config);
+                
+                let filteredQuestions = allQuestions;
+                
+                // Filter by selected subjects if custom type
+                if (config.testType === 'custom' && config.selectedSubjects) {
+                    filteredQuestions = allQuestions.filter(q => config.selectedSubjects.includes(q.subject));
+                }
+                
+                // Shuffle questions
+                filteredQuestions = shuffleArray(filteredQuestions);
+                
+                // Limit question count
+                if (config.questionCount && config.questionCount !== 'all') {
+                    const maxQuestions = parseInt(config.questionCount);
+                    filteredQuestions = filteredQuestions.slice(0, maxQuestions);
+                }
+                
+                testQuestions = filteredQuestions;
+                console.log('Generated practice test questions from 2024 database:', testQuestions.length);
+            }
+
+            function generateSessionTestQuestions(allQuestions, config) {
+                console.log('Generating session test questions from 2025 database:', config);
+                
+                let filteredQuestions = allQuestions;
+                
+                // Filter by selected subjects
+                if (config.selectedSubjects && config.selectedSubjects.length > 0) {
+                    filteredQuestions = allQuestions.filter(q => config.selectedSubjects.includes(q.subject));
+                }
+                
+                // Filter by difficulty if specified
+                if (config.difficulty && config.difficulty !== 'mixed') {
+                    filteredQuestions = filteredQuestions.filter(q => (q.difficulty || 'medium') === config.difficulty);
+                }
+                
+                // Apply question strategy
+                switch(config.questionStrategy) {
+                    case 'latest':
+                        // Assume questions have a date field or are ordered by latest
+                        filteredQuestions.reverse();
+                        break;
+                    case 'balanced':
+                        filteredQuestions = balanceQuestionsBySubject(filteredQuestions);
+                        break;
+                    default:
+                        filteredQuestions = shuffleArray(filteredQuestions);
+                }
+                
+                // Estimate question count based on session type
+                let maxQuestions = 100; // Default
+                switch(config.sessionType) {
+                    case 'quick-assessment':
+                        maxQuestions = 30;
+                        break;
+                    case 'revision-test':
+                        maxQuestions = 50;
+                        break;
+                    case 'subject-specific':
+                        maxQuestions = 25;
+                        break;
+                    case 'full-mock':
+                        maxQuestions = Math.min(100, filteredQuestions.length);
+                        break;
+                }
+                
+                testQuestions = filteredQuestions.slice(0, maxQuestions);
+                console.log('Generated session test questions from 2025 database:', testQuestions.length);
+            }
+
+            function balanceQuestionsBySubject(questions) {
+                const subjectGroups = {};
+                questions.forEach(q => {
+                    if (!subjectGroups[q.subject]) {
+                        subjectGroups[q.subject] = [];
+                    }
+                    subjectGroups[q.subject].push(q);
+                });
+                
+                const balanced = [];
+                const subjects = Object.keys(subjectGroups);
+                const maxPerSubject = Math.floor(100 / subjects.length);
+                
+                subjects.forEach(subject => {
+                    const subjectQuestions = shuffleArray(subjectGroups[subject]);
+                    balanced.push(...subjectQuestions.slice(0, maxPerSubject));
+                });
+                
+                return shuffleArray(balanced);
+            }
+
+            function selectAndBalanceQuestions(questionPool, topics, subject) {
+                const maxQuestionsPerSubject = 25;
+                
+                if (questionPool.length <= maxQuestionsPerSubject) {
+                    return shuffleArray([...questionPool]);
+                } else {
+                    return selectQuestionsWithEqualWeightage(questionPool, topics, maxQuestionsPerSubject);
+                }
+            }
+
+            function selectQuestionsWithEqualWeightage(questionPool, topics, totalQuestions) {
+                const questionsPerTopic = Math.floor(totalQuestions / topics.length);
+                const remainingQuestions = totalQuestions % topics.length;
+                
+                const selectedQuestions = [];
+                const questionsByTopic = {};
+                
+                // Group questions by topic
+                questionPool.forEach(question => {
+                    if (!questionsByTopic[question.topic]) {
+                        questionsByTopic[question.topic] = [];
+                    }
+                    questionsByTopic[question.topic].push(question);
+                });
+                
+                // Select questions for each topic
+                topics.forEach((topic, index) => {
+                    if (questionsByTopic[topic]) {
+                        const topicQuestions = shuffleArray([...questionsByTopic[topic]]);
+                        let questionsToTake = questionsPerTopic;
+                        
+                        if (index < remainingQuestions) {
+                            questionsToTake += 1;
+                        }
+                        
+                        selectedQuestions.push(...topicQuestions.slice(0, questionsToTake));
+                    }
+                });
+                
+                return shuffleArray(selectedQuestions);
+            }
+
+            function shuffleArray(array) {
+                const shuffled = [...array];
+                for (let i = shuffled.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                }
+                return shuffled;
+            }
+
+            function displayTestConfiguration() {
+                const configDisplay = document.getElementById('configDisplay');
+                
+                let configHTML = '<div class="test-config-display">';
+                configHTML += '<h4>📊 Test Overview</h4>';
+                configHTML += `<p><strong>Test Mode:</strong> ${testConfig.mode.replace('-', ' ').toUpperCase()}</p>`;
+                configHTML += `<p><strong>Data Source:</strong> ${dataSourceLabel}</p>`;
+                configHTML += `<p><strong>Total Questions:</strong> ${testQuestions.length}</p>`;
+                
+                if (testConfig.mode === 'topic-test') {
+                    // Count questions per subject
+                    const subjectCounts = {};
+                    Object.keys(subjectQuestions).forEach(subject => {
+                        subjectCounts[subject] = subjectQuestions[subject].length;
+                    });
+                    
+                    configHTML += `<p><strong>Total Time:</strong> ${selectedSubjects.length} hour${selectedSubjects.length > 1 ? 's' : ''} (1 hour per subject)</p>`;
+                    configHTML += '<h5>Questions per Subject:</h5>';
+                    configHTML += '<ul>';
+                    
+                    Object.keys(subjectCounts).forEach(subject => {
+                        const count = subjectCounts[subject];
+                        configHTML += `<li><strong>${subject}:</strong> ${count} questions (1 hour)`;
+                        if (count < 25) {
+                            configHTML += ` - ${count} available questions from 2023 database`;
+                        } else {
+                            configHTML += ` - randomly selected from 2023 database`;
+                        }
+                        configHTML += '</li>';
+                    });
+                    
+                    configHTML += '</ul>';
+                    configHTML += '<h5>Selected Topics:</h5>';
+                    configHTML += '<ul>';
+                    
+                    testConfig.selectedTopics.forEach(topic => {
+                        configHTML += `<li>${topic.subject}: ${topic.topic}</li>`;
+                    });
+                    
+                    configHTML += '</ul>';
+                } else {
+                    const hours = Math.floor(timeRemaining / 3600);
+                    const minutes = Math.floor((timeRemaining % 3600) / 60);
+                    configHTML += `<p><strong>Time Limit:</strong> ${hours}h ${minutes}m</p>`;
+                    configHTML += `<p><strong>Questions from:</strong> ${dataSourceLabel}</p>`;
+                    
+                    if (testConfig.mode === 'session-test') {
+                        configHTML += `<p><strong>Session Type:</strong> ${testConfig.sessionType || 'Standard'}</p>`;
+                        configHTML += `<p><strong>Difficulty:</strong> ${testConfig.difficulty || 'Mixed'}</p>`;
+                        if (testConfig.negativeMarking) {
+                            configHTML += `<p><strong>Negative Marking:</strong> Enabled (-0.25 for wrong answers)</p>`;
+                        }
+                    }
+                }
+                
+                configHTML += '</div>';
+                
+                configDisplay.innerHTML = configHTML;
+            }
+
+            function startTest() {
+                document.getElementById('testConfig').style.display = 'none';
+                document.getElementById('testInterface').style.display = 'block';
+                
+                initializeQuestionPalette();
+                startTimer();
+                displayQuestion();
+            }
+
+            function initializeQuestionPalette() {
+                const paletteGrid = document.getElementById('paletteGrid');
+                paletteGrid.innerHTML = '';
+
+                testQuestions.forEach((question, index) => {
+                    const questionBtn = document.createElement('button');
+                    questionBtn.className = 'palette-question unanswered';
+                    questionBtn.textContent = index + 1;
+                    questionBtn.title = `${question.subject} - ${question.topic}`;
+                    questionBtn.addEventListener('click', () => navigateToQuestion(index));
+                    paletteGrid.appendChild(questionBtn);
+                });
+
+                updatePaletteSummary();
+            }
+
+            function updateQuestionPalette() {
+                const paletteButtons = document.querySelectorAll('.palette-question');
+                
+                paletteButtons.forEach((btn, index) => {
+                    btn.className = 'palette-question';
+                    
+                    if (index === currentQuestionIndex) {
+                        btn.classList.add('current');
+                    } else if (markedQuestions.has(index)) {
+                        btn.classList.add('marked');
+                    } else if (userAnswers[index] !== undefined) {
+                        btn.classList.add('answered');
+                    } else if (visitedQuestions.has(index)) {
+                        btn.classList.add('visited');
+                    } else {
+                        btn.classList.add('unanswered');
+                    }
+                });
+
+                updatePaletteSummary();
+            }
+
+            function updatePaletteSummary() {
+                const answered = Object.keys(userAnswers).length;
+                const marked = markedQuestions.size;
+                const visited = visitedQuestions.size;
+                const total = testQuestions.length;
+                const notVisited = total - visited;
+
+                document.getElementById('paletteSummary').innerHTML = `
+                    <div class="summary-grid">
+                        <div class="summary-item">
+                            <span class="summary-number">${answered}</span>
+                            <span class="summary-label">Answered</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-number">${marked}</span>
+                            <span class="summary-label">Marked</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-number">${notVisited}</span>
+                            <span class="summary-label">Not Visited</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            function navigateToQuestion(index) {
+                if (index >= 0 && index < testQuestions.length) {
+                    currentQuestionIndex = index;
+                    displayQuestion();
+                }
+            }
+
+            function startTimer() {
+                updateTimerDisplay();
+                timerInterval = setInterval(() => {
+                    timeRemaining--;
+                    updateTimerDisplay();
+                    
+                    if (timeRemaining <= 0) {
+                        clearInterval(timerInterval);
+                        submitTest();
+                    }
+                }, 1000);
+            }
+
+            function updateTimerDisplay() {
+                const hours = Math.floor(timeRemaining / 3600);
+                const minutes = Math.floor((timeRemaining % 3600) / 60);
+                const seconds = timeRemaining % 60;
+                
+                let timeString = '';
+                if (hours > 0) {
+                    timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                } else {
+                    timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                }
+                
+                document.getElementById('timer').textContent = timeString;
+                
+                // Change timer color when time is running low
+                const timerElement = document.getElementById('timer');
+                if (timeRemaining <= 300) { // Last 5 minutes
+                    timerElement.style.color = '#e74c3c';
+                    timerElement.style.fontWeight = 'bold';
+                } else if (timeRemaining <= 600) { // Last 10 minutes
+                    timerElement.style.color = '#f39c12';
+                }
+            }
+
+            function displayQuestion() {
+                if (currentQuestionIndex >= testQuestions.length) return;
+                
+                const question = testQuestions[currentQuestionIndex];
+                
+                // Mark question as visited
+                visitedQuestions.add(currentQuestionIndex);
+                
+                // Update question counter and subject
+                document.getElementById('questionCounter').textContent = 
+                    `Question ${currentQuestionIndex + 1} of ${testQuestions.length}`;
+                document.getElementById('currentSubject').textContent = question.subject;
+                
+                // Update question header
+                document.querySelector('.question-subject').textContent = `Subject: ${question.subject}`;
+                document.querySelector('.question-topic').textContent = `Topic: ${question.topic || 'General'}`;
+                
+                // Display question text
+                document.getElementById('questionText').textContent = question.question;
+                
+                // Display options
+                const optionsContainer = document.getElementById('optionsContainer');
+                optionsContainer.innerHTML = '';
+                
+                if (question.options && question.options.length > 0) {
+                    question.options.forEach((option, index) => {
+                        const optionDiv = document.createElement('div');
+                        optionDiv.className = 'option-item';
+                        
+                        const optionInput = document.createElement('input');
+                        optionInput.type = 'radio';
+                        optionInput.name = 'answer';
+                        optionInput.value = option;
+                        optionInput.id = `option${index}`;
+                        
+                        // Check if this option was previously selected
+                        if (userAnswers[currentQuestionIndex] === option) {
+                            optionInput.checked = true;
+                        }
+                        
+                        const optionLabel = document.createElement('label');
+                        optionLabel.htmlFor = `option${index}`;
+                        optionLabel.textContent = option;
+                        
+                        optionDiv.appendChild(optionInput);
+                        optionDiv.appendChild(optionLabel);
+                        optionsContainer.appendChild(optionDiv);
+                        
+                        // Add click event
+                        optionInput.addEventListener('change', function() {
+                            userAnswers[currentQuestionIndex] = this.value;
+                            updateQuestionPalette();
+                        });
+                    });
+                }
+                
+                // Update navigation buttons
+                document.getElementById('prevBtn').disabled = currentQuestionIndex === 0;
+                document.getElementById('nextBtn').style.display = 
+                    currentQuestionIndex === testQuestions.length - 1 ? 'none' : 'inline-block';
+                document.getElementById('submitBtn').style.display = 
+                    currentQuestionIndex === testQuestions.length - 1 ? 'inline-block' : 'none';
+                
+                // Update mark button
+                const markBtn = document.getElementById('markBtn');
+                if (markedQuestions.has(currentQuestionIndex)) {
+                    markBtn.textContent = 'Unmark';
+                    markBtn.classList.add('marked');
+                } else {
+                    markBtn.textContent = 'Mark for Review';
+                    markBtn.classList.remove('marked');
+                }
+                
+                updateQuestionPalette();
+            }
+
+            function submitTest() {
+                clearInterval(timerInterval);
+                
+                // Calculate results
+                let correct = 0;
+                let incorrect = 0;
+                let attempted = Object.keys(userAnswers).length;
+                
+                testQuestions.forEach((question, index) => {
+                    if (userAnswers[index] !== undefined) {
+                        if (userAnswers[index] === question.answer) {
+                            correct++;
+                        } else {
+                            incorrect++;
+                        }
+                    }
+                });
+                
+                // Calculate score with negative marking if enabled
+                let finalScore = correct;
+                if (testConfig.negativeMarking && testConfig.mode === 'session-test') {
+                    finalScore = correct - (incorrect * 0.25);
+                }
+                
+                const percentage = (correct / testQuestions.length) * 100;
+                const totalTimeInSeconds = testConfig.mode === 'topic-test' ? 
+                    selectedSubjects.length * 3600 : 
+                    (testConfig.timeLimit || testConfig.duration || 3600);
+                const timeTaken = totalTimeInSeconds - timeRemaining;
+                
+                // Display results
+                document.getElementById('testInterface').style.display = 'none';
+                document.getElementById('resultsContainer').style.display = 'block';
+                
+                let resultsHTML = `
+                    <div class="results-summary">
+                        <h4>📈 Performance Summary</h4>
+                        <p><strong>Score:</strong> ${correct}/${testQuestions.length} (${percentage.toFixed(1)}%)</p>
+                        <p><strong>Questions Attempted:</strong> ${attempted}/${testQuestions.length}</p>
+                        <p><strong>Correct Answers:</strong> ${correct}</p>
+                        <p><strong>Incorrect Answers:</strong> ${incorrect}</p>
+                        <p><strong>Time Taken:</strong> ${Math.floor(timeTaken / 3600)}h ${Math.floor((timeTaken % 3600) / 60)}m</p>
+                        <p><strong>Questions Marked:</strong> ${markedQuestions.size}</p>
+                `;
+                
+                if (testConfig.negativeMarking && testConfig.mode === 'session-test') {
+                    resultsHTML += `<p><strong>Final Score (with negative marking):</strong> ${finalScore.toFixed(2)}</p>`;
+                }
+                
+                resultsHTML += `
+                        <p><strong>Data Source:</strong> ${dataSourceLabel}</p>
+                    </div>
+                    <div class="text-center" style="margin-top: 2rem;">
+                        <button onclick="window.location.href='test-selection.html'" class="btn btn-primary">Take Another Test</button>
+                        <button onclick="window.location.href='index.html'" class="btn btn-secondary">Home</button>
+                    </div>
+                `;
+                
+                document.getElementById('resultsDisplay').innerHTML = resultsHTML;
+            }
+
+            function confirmExit() {
+                const confirmed = confirm('Are you sure you want to exit the test? All progress will be lost.');
+                if (confirmed) {
+                    clearInterval(timerInterval);
+                    localStorage.removeItem('testConfig');
+                    return true;
+                }
+                return false;
+            }
+
+            // Event Listeners
+            document.getElementById('startTestBtn').addEventListener('click', startTest);
+            
+            document.getElementById('prevBtn').addEventListener('click', function() {
+                if (currentQuestionIndex > 0) {
+                    currentQuestionIndex--;
+                    displayQuestion();
+                }
+            });
+            
+            document.getElementById('nextBtn').addEventListener('click', function() {
+                if (currentQuestionIndex < testQuestions.length - 1) {
+                    currentQuestionIndex++;
+                    displayQuestion();
+                }
+            });
+            
+            document.getElementById('markBtn').addEventListener('click', function() {
+                if (markedQuestions.has(currentQuestionIndex)) {
+                    markedQuestions.delete(currentQuestionIndex);
+                } else {
+                    markedQuestions.add(currentQuestionIndex);
+                }
+                displayQuestion();
+            });
+            
+            document.getElementById('clearBtn').addEventListener('click', function() {
+                delete userAnswers[currentQuestionIndex];
+                const radioButtons = document.querySelectorAll('input[name="answer"]');
+                radioButtons.forEach(radio => radio.checked = false);
+                updateQuestionPalette();
+            });
+            
+            document.getElementById('submitBtn').addEventListener('click', function() {
+                const confirmed = confirm('Are you sure you want to submit the test? You cannot change your answers after submission.');
+                if (confirmed) {
+                    submitTest();
+                }
+            });
+            
+            // Toggle palette visibility
+            document.getElementById('togglePalette').addEventListener('click', function() {
+                const paletteContent = document.querySelector('.palette-content');
+                const toggleBtn = document.getElementById('togglePalette');
+                
+                if (paletteContent.style.display === 'none') {
+                    paletteContent.style.display = 'block';
+                    toggleBtn.textContent = '▼';
+                } else {
+                    paletteContent.style.display = 'none';
+                    toggleBtn.textContent = '▶';
+                }
+            });
+
+            // Prevent page refresh/back button during test
+            window.addEventListener('beforeunload', function(e) {
+                if (document.getElementById('testInterface').style.display !== 'none') {
+                    e.preventDefault();
+                    e.returnValue = '';
+                }
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (document.getElementById('testInterface').style.display !== 'none') {
+                    switch(e.key) {
+                        case 'ArrowLeft':
+                            if (currentQuestionIndex > 0) {
+                                currentQuestionIndex--;
+                                displayQuestion();
+                            }
+                            break;
+                        case 'ArrowRight':
+                            if (currentQuestionIndex < testQuestions.length - 1) {
+                                currentQuestionIndex++;
+                                displayQuestion();
+                            }
+                            break;
+                        case '1':
+                        case '2':
+                        case '3':
+                        case '4':
+                            const optionIndex = parseInt(e.key) - 1;
+                            const options = document.querySelectorAll('input[name="answer"]');
+                            if (options[optionIndex]) {
+                                options[optionIndex].checked = true;
+                                userAnswers[currentQuestionIndex] = options[optionIndex].value;
+                                updateQuestionPalette();
+                            }
+                            break;
+                        case 'm':
+                        case 'M':
+                            document.getElementById('markBtn').click();
+                            break;
+                        case 'c':
+                        case 'C':
+                            document.getElementById('clearBtn').click();
+                            break;
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
