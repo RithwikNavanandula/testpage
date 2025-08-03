@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Topic Wise Test - EduAssess Pro</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="fullscreen-body">
+    <div class="fullscreen-container">
+        <header class="compact-header">
+            <div class="header-content">
+                <h1>Topic Wise Test</h1>
+                <button class="back-btn" onclick="goHome()">← Back</button>
+            </div>
+        </header>
+
+        <div id="topicWiseSelection" class="topic-wise-selection">
+            <h2>Select Topics for Test</h2>
+            <p class="selection-info">Choose one or more topics. Maximum 25 random questions per subject will be selected.</p>
+            
+            <div class="subjects-container">
+                <div class="subject-group">
+                    <h3>Mathematics</h3>
+                    <div class="topics-checkboxes" id="mathematicsTopics">
+                        <!-- Math topics will be populated dynamically -->
+                    </div>
+                </div>
+
+                <div class="subject-group">
+                    <h3>Physics</h3>
+                    <div class="topics-checkboxes" id="physicsTopics">
+                        <!-- Physics topics will be populated dynamically -->
+                    </div>
+                </div>
+
+                <div class="subject-group">
+                    <h3>Chemistry</h3>
+                    <div class="topics-checkboxes" id="chemistryTopics">
+                        <!-- Chemistry topics will be populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="selection-actions">
+                <button class="nav-btn" onclick="selectAllTopics()">Select All</button>
+                <button class="nav-btn" onclick="clearAllTopics()">Clear All</button>
+                <button class="nav-btn primary" onclick="startTopicWiseTest()">Start Test</button>
+            </div>
+        </div>
+
+        <div class="test-with-palette" id="topicTestWithPalette" style="display: none;">
+            <div id="topicQuestionPalette" class="question-palette">
+                <!-- Question palette will be populated dynamically -->
+            </div>
+
+            <div id="topicTestArea" class="test-area-fullscreen">
+                <div class="test-header">
+                    <div class="test-info">
+                        <h3 id="topicTestTitle">Topic Wise Test</h3>
+                        <div class="test-stats">
+                            <span>Question <span id="currentTopicQuestion">1</span> of <span id="totalTopicQuestions">0</span></span>
+                            <span class="timer" id="topicTimer">Time: 00:00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="question-container">
+                    <div class="question-header">
+                        <span class="question-type" id="topicQuestionType">MCQ</span>
+                        <span class="subject-tag" id="topicSubjectTag">Mathematics</span>
+                    </div>
+                    
+                    <div class="question-content" id="topicQuestionContent">
+                        <!-- Question content will be populated dynamically -->
+                    </div>
+
+                    <div class="question-image" id="topicQuestionImage">
+                        <!-- Question image will be shown here if available -->
+                    </div>
+
+                    <div class="options-container" id="topicOptionsContainer">
+                        <!-- Options will be populated dynamically -->
+                    </div>
+
+                    <div class="numerical-input hidden" id="topicNumericalInput">
+                        <input type="text" id="topicNumericalAnswer" placeholder="Enter your answer">
+                    </div>
+                </div>
+
+                <div class="test-navigation">
+                    <button class="nav-btn" id="topicPrevBtn" onclick="previousTopicQuestion()">Previous</button>
+                    <button class="nav-btn primary" id="topicNextBtn" onclick="nextTopicQuestion()">Next</button>
+                    <button class="nav-btn submit" id="topicSubmitBtn" onclick="submitTopicTest()" style="display: none;">Submit Test</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="topicResultArea" class="result-area hidden">
+            <div class="result-container">
+                <h2>Test Results</h2>
+                <div class="result-summary" id="topicResultSummary">
+                    <!-- Results will be populated dynamically -->
+                </div>
+                <button class="nav-btn primary" onclick="retakeTopicTest()">Take Another Test</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="questions2023.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>

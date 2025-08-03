@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Practice Test - EduAssess Pro</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="fullscreen-body">
+    <div class="fullscreen-container">
+        <header class="compact-header">
+            <div class="header-content">
+                <h1>Practice Test</h1>
+                <button class="back-btn" onclick="goHome()">← Back</button>
+            </div>
+        </header>
+
+        <div id="topicSelection" class="topic-selection">
+            <h2>Select a Topic to Practice</h2>
+            <div class="topics-grid" id="topicsGrid">
+                <!-- Topics will be populated dynamically -->
+            </div>
+        </div>
+
+        <div id="practiceArea" class="practice-area hidden">
+            <div class="practice-header">
+                <h3 id="topicTitle">Topic Practice</h3>
+                <div class="practice-stats">
+                    <span>Question <span id="currentPracticeQuestion">1</span> of <span id="totalPracticeQuestions">0</span></span>
+                </div>
+            </div>
+
+            <div class="question-container">
+                <div class="question-header">
+                    <span class="question-type" id="practiceQuestionType">MCQ</span>
+                    <span class="subject-tag" id="practiceSubjectTag">Mathematics</span>
+                </div>
+                
+                <div class="question-content" id="practiceQuestionContent">
+                    <!-- Question content will be populated dynamically -->
+                </div>
+
+                <div class="question-image" id="practiceQuestionImage">
+                    <!-- Question image will be shown here if available -->
+                </div>
+
+                <div class="options-container" id="practiceOptionsContainer">
+                    <!-- Options will be populated dynamically -->
+                </div>
+
+                <div class="numerical-input hidden" id="practiceNumericalInput">
+                    <input type="text" id="practiceNumericalAnswer" placeholder="Enter your answer">
+                </div>
+
+                <div class="solution-container hidden" id="solutionContainer">
+                    <div class="solution-header">
+                        <h4>Solution</h4>
+                        <span class="correct-answer" id="correctAnswerDisplay"></span>
+                    </div>
+                    <div class="solution-content" id="solutionContent">
+                        <!-- Solution explanation will be shown here -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="practice-navigation">
+                <button class="nav-btn" id="practicePrevBtn" onclick="previousPracticeQuestion()">Previous</button>
+                <button class="nav-btn answer" id="showAnswerBtn" onclick="showAnswer()">Show Answer</button>
+                <button class="nav-btn primary" id="practiceNextBtn" onclick="nextPracticeQuestion()">Next</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="questions2024.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>

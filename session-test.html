@@ -4,287 +4,83 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Session Test - EduAssess Pro</title>
-    <link rel="stylesheet" href="styles/test.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
-<body>
-
-    <!-- Initial screen to prompt user to start and enter fullscreen -->
-    <div id="start-screen">
-        <h1>Test Instructions</h1>
-        <p>This test will run in full-screen mode to prevent malpractice.</p>
-        <p>Right-clicking and switching tabs are disabled.</p>
-        <button id="start-test-btn" class="btn btn-primary btn-large">Start Test</button>
-    </div>
-
-    <!-- Main Test Container (Initially Hidden) -->
-    <div class="test-container" id="test-container">
-        <header class="test-header">
-            <h2>EduAssess Pro - Session Test</h2>
-            <div id="timer" class="timer">Time Left: 03:00:00</div>
+<body class="fullscreen-body">
+    <div class="fullscreen-container">
+        <header class="compact-header">
+            <div class="header-content">
+                <h1>Session Test</h1>
+                <button class="back-btn" onclick="goHome()">← Back</button>
+            </div>
         </header>
 
-        <div class="test-wrapper">
-            <!-- Question Area -->
-            <main class="question-area">
-                <div class="question-content">
-                    <p id="question-number" class="text-muted"></p>
-                    <h3 id="question-text"></h3>
-                    <img id="question-image" src="" alt="Question Image" style="max-width: 100%; display: none;">
-                    <ul id="options-list" class="options-list"></ul>
-                </div>
-                <div class="navigation-buttons">
-                    <button id="mark-review-btn" class="btn btn-secondary">Mark for Review & Next</button>
-                    <div>
-                        <button id="prev-btn" class="btn btn-light">Previous</button>
-                        <button id="next-btn" class="btn btn-success">Save & Next</button>
+        <div id="sessionSelection" class="session-selection">
+            <h2>Select a Session</h2>
+            <div class="sessions-grid" id="sessionsGrid">
+                <!-- Sessions will be populated dynamically -->
+            </div>
+        </div>
+
+        <div class="test-with-palette" id="testWithPalette" style="display: none;">
+            <div id="questionPalette" class="question-palette">
+                <!-- Question palette will be populated dynamically -->
+            </div>
+
+            <div id="testArea" class="test-area-fullscreen">
+                <div class="test-header">
+                    <div class="test-info">
+                        <h3 id="sessionTitle">Session Test</h3>
+                        <div class="test-stats">
+                            <span>Question <span id="currentQuestion">1</span> of <span id="totalQuestions">0</span></span>
+                            <span class="timer" id="timer">Time: 00:00</span>
+                        </div>
                     </div>
                 </div>
-            </main>
 
-            <!-- Sidebar with Palette -->
-            <aside class="sidebar">
-                <div class="palette-header">Question Palette</div>
-                <div id="question-palette" class="question-palette"></div>
-                <div class="submit-area">
-                    <button id="submit-btn" class="btn btn-danger btn-large">Submit Test</button>
+                <div class="question-container">
+                    <div class="question-header">
+                        <span class="question-type" id="questionType">MCQ</span>
+                        <span class="subject-tag" id="subjectTag">Mathematics</span>
+                    </div>
+                    
+                    <div class="question-content" id="questionContent">
+                        <!-- Question content will be populated dynamically -->
+                    </div>
+
+                    <div class="question-image" id="questionImage">
+                        <!-- Question image will be shown here if available -->
+                    </div>
+
+                    <div class="options-container" id="optionsContainer">
+                        <!-- Options will be populated dynamically -->
+                    </div>
+
+                    <div class="numerical-input hidden" id="numericalInput">
+                        <input type="text" id="numericalAnswer" placeholder="Enter your answer">
+                    </div>
                 </div>
-            </aside>
+
+                <div class="test-navigation">
+                    <button class="nav-btn" id="prevBtn" onclick="previousQuestion()">Previous</button>
+                    <button class="nav-btn primary" id="nextBtn" onclick="nextQuestion()">Next</button>
+                    <button class="nav-btn submit" id="submitBtn" onclick="submitTest()" style="display: none;">Submit Test</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="resultArea" class="result-area hidden">
+            <div class="result-container">
+                <h2>Test Results</h2>
+                <div class="result-summary" id="resultSummary">
+                    <!-- Results will be populated dynamically -->
+                </div>
+                <button class="nav-btn primary" onclick="retakeTest()">Take Another Test</button>
+            </div>
         </div>
     </div>
 
-    <script src="js/questions2025.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const startBtn = document.getElementById('start-test-btn');
-            const startScreen = document.getElementById('start-screen');
-            const testContainer = document.getElementById('test-container');
-
-            let questions = [];
-            let userAnswers = [];
-            let currentQuestionIndex = 0;
-            const TOTAL_TIME = 3 * 60 * 60; // 3 hours in seconds
-            let timeLeft = TOTAL_TIME;
-            let timerInterval;
-
-            // --- Anti-Malpractice Features ---
-            function setupAntiMalpractice() {
-                // Disable right-click
-                document.addEventListener('contextmenu', event => event.preventDefault());
-
-                // Detect tab/window switching
-                document.addEventListener('visibilitychange', () => {
-                    if (document.hidden) {
-                        alert('Warning: Leaving the test tab is prohibited and will be logged.');
-                        // You can add more strict actions here, like pausing the timer or ending the test
-                    }
-                });
-
-                // Disable copy/paste/cut
-                const disableKeys = e => e.preventDefault();
-                document.addEventListener('copy', disableKeys);
-                document.addEventListener('paste', disableKeys);
-                document.addEventListener('cut', disableKeys);
-            }
-
-            // --- Fullscreen Mode ---
-            function enterFullscreen() {
-                const elem = document.documentElement;
-                if (elem.requestFullscreen) {
-                    elem.requestFullscreen();
-                } else if (elem.webkitRequestFullscreen) { /* Safari */
-                    elem.webkitRequestFullscreen();
-                } else if (elem.msRequestFullscreen) { /* IE11 */
-                    elem.msRequestFullscreen();
-                }
-            }
-
-            startBtn.addEventListener('click', () => {
-                enterFullscreen();
-                startScreen.style.display = 'none';
-                testContainer.style.display = 'block';
-                setupAntiMalpractice();
-                initializeTest();
-            });
-
-            function initializeTest() {
-                const urlParams = new URLSearchParams(window.location.search);
-                const session = parseInt(urlParams.get('session'));
-
-                if (!session || isNaN(session)) {
-                    testContainer.innerHTML = '<h1>Error: Invalid session selected.</h1>';
-                    return;
-                }
-
-                // Filter questions for the selected session
-                questions = sessionQuestions2025.filter(q => q.session === session);
-
-                if (questions.length === 0) {
-                    testContainer.innerHTML = `<h1>No questions found for Session ${session}.</h1>`;
-                    return;
-                }
-                
-                // Initialize user answers and statuses
-                userAnswers = new Array(questions.length).fill({
-                    answer: null,
-                    status: 'not-answered' // states: not-answered, answered, marked
-                });
-
-                renderQuestion(currentQuestionIndex);
-                renderPalette();
-                startTimer();
-            }
-
-            function renderQuestion(index) {
-                const question = questions[index];
-                document.getElementById('question-number').innerText = `Question ${index + 1}`;
-                document.getElementById('question-text').innerText = question.question;
-
-                const questionImage = document.getElementById('question-image');
-                if (question.imageUrl) {
-                    questionImage.src = question.imageUrl;
-                    questionImage.style.display = 'block';
-                } else {
-                    questionImage.style.display = 'none';
-                }
-                
-                const optionsList = document.getElementById('options-list');
-                optionsList.innerHTML = '';
-
-                if (question.questionType === "MCQ") {
-                    question.options.forEach((option, i) => {
-                        const li = document.createElement('li');
-                        const optionLetter = String.fromCharCode(65 + i); // A, B, C, D
-                        li.innerText = `${optionLetter}. ${option}`;
-                        li.dataset.option = optionLetter;
-
-                        if (userAnswers[index].answer === optionLetter) {
-                            li.classList.add('selected');
-                        }
-
-                        li.addEventListener('click', () => {
-                            // Toggle selection
-                            if (li.classList.contains('selected')) {
-                                li.classList.remove('selected');
-                                userAnswers[index] = { ...userAnswers[index], answer: null };
-                            } else {
-                                // Clear previous selection if any
-                                document.querySelectorAll('#options-list li').forEach(el => el.classList.remove('selected'));
-                                li.classList.add('selected');
-                                userAnswers[index] = { ...userAnswers[index], answer: li.dataset.option };
-                            }
-                        });
-                        optionsList.appendChild(li);
-                    });
-                } else { // Numerical
-                    optionsList.innerHTML = `<li><input type="text" id="numerical-answer" placeholder="Enter your answer" class="form-control"></li>`;
-                    const input = document.getElementById('numerical-answer');
-                    if(userAnswers[index].answer) {
-                        input.value = userAnswers[index].answer;
-                    }
-                    input.addEventListener('input', () => {
-                        userAnswers[index] = { ...userAnswers[index], answer: input.value };
-                    });
-                }
-                updatePalette();
-            }
-
-            function renderPalette() {
-                const palette = document.getElementById('question-palette');
-                palette.innerHTML = '';
-                questions.forEach((_, i) => {
-                    const btn = document.createElement('button');
-                    btn.className = 'palette-btn';
-                    btn.innerText = i + 1;
-                    btn.addEventListener('click', () => {
-                        currentQuestionIndex = i;
-                        renderQuestion(i);
-                    });
-                    palette.appendChild(btn);
-                });
-                updatePalette();
-            }
-
-            function updatePalette() {
-                const buttons = document.querySelectorAll('.palette-btn');
-                buttons.forEach((btn, i) => {
-                    btn.className = 'palette-btn'; // Reset classes
-                    if (userAnswers[i].status === 'answered') {
-                        btn.classList.add('answered');
-                    } else if (userAnswers[i].status === 'marked') {
-                        btn.classList.add('marked');
-                    } else {
-                        btn.classList.add('not-answered');
-                    }
-                    if (i === currentQuestionIndex) {
-                        btn.classList.add('current');
-                    }
-                });
-            }
-
-            function navigate(direction) {
-                const nextIndex = currentQuestionIndex + direction;
-                if (nextIndex >= 0 && nextIndex < questions.length) {
-                    currentQuestionIndex = nextIndex;
-                    renderQuestion(currentQuestionIndex);
-                }
-            }
-            
-            function saveAndNext(isMarked = false) {
-                const currentAnswer = userAnswers[currentQuestionIndex].answer;
-                if (currentAnswer !== null && currentAnswer !== '') {
-                    userAnswers[currentQuestionIndex].status = 'answered';
-                }
-                if (isMarked) {
-                     userAnswers[currentQuestionIndex].status = 'marked';
-                }
-                updatePalette();
-                navigate(1);
-            }
-
-            document.getElementById('next-btn').addEventListener('click', () => saveAndNext(false));
-            document.getElementById('prev-btn').addEventListener('click', () => navigate(-1));
-            document.getElementById('mark-review-btn').addEventListener('click', () => saveAndNext(true));
-            document.getElementById('submit-btn').addEventListener('click', submitTest);
-
-            function startTimer() {
-                timerInterval = setInterval(() => {
-                    timeLeft--;
-                    const hours = Math.floor(timeLeft / 3600);
-                    const minutes = Math.floor((timeLeft % 3600) / 60);
-                    const seconds = timeLeft % 60;
-                    document.getElementById('timer').innerText = `Time Left: ${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
-                    if (timeLeft <= 0) {
-                        clearInterval(timerInterval);
-                        alert("Time's up!");
-                        submitTest();
-                    }
-                }, 1000);
-            }
-
-            function submitTest() {
-                clearInterval(timerInterval);
-                let score = 0;
-                let attempted = 0;
-                questions.forEach((q, i) => {
-                    if (userAnswers[i].answer !== null && userAnswers[i].answer !== '') {
-                        attempted++;
-                        if (String(userAnswers[i].answer).toUpperCase() === String(q.correctAnswer).toUpperCase()) {
-                            score++;
-                        }
-                    }
-                });
-                // Exit fullscreen before showing results
-                if (document.exitFullscreen) document.exitFullscreen();
-
-                testContainer.innerHTML = `<div style="text-align:center; padding: 5rem;">
-                    <h1>Test Submitted!</h1>
-                    <h2>Your Score: ${score} / ${questions.length}</h2>
-                    <p>Attempted: ${attempted}</p>
-                    <a href="test-selection.html" class="btn btn-primary">Back to Test Selection</a>
-                </div>`;
-            }
-        });
-    </script>
+    <script src="questions2025.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>
-
